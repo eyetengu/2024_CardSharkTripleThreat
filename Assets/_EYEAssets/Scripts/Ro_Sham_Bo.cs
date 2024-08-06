@@ -5,12 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 public class Ro_Sham_Bo : MonoBehaviour
-{
-    [Header("ANIMATORS")]
-    [SerializeField] Animator _tabledCardsAnimator;
-    [SerializeField] Animator _cardsInHandAnimator;
-    Animator _animator_Player;
-
+{    
     [Header("CARD SPECIFICS")]
     [SerializeField] private string[] _roShamBo;
     [SerializeField] private Sprite[] _itemImage;
@@ -18,14 +13,12 @@ public class Ro_Sham_Bo : MonoBehaviour
     [Header("PLAYERS CARD")]
     [SerializeField] private TMP_Text _cardNamePlayer;
     [SerializeField] private Image _cardImagePlayer;
+    [SerializeField] private GameObject _cardCoverPlayer;
 
     [Header("OPPONENTS CARD")]
     [SerializeField] private TMP_Text _cardNameOpponent;
-    [SerializeField] private Image _opponentMesh;
-    [SerializeField] private GameObject _opponentCardCover;
-
-    [Header("PLAYER MESSAGE")]
-    [SerializeField] private TMP_Text _playerMessage;
+    [SerializeField] private Image _cardImageOpponent;
+    [SerializeField] private GameObject _cardCoverOpponent;
 
     [Header("PLAYER GRIPS")]
     [SerializeField] GameObject _gripR;
@@ -37,76 +30,91 @@ public class Ro_Sham_Bo : MonoBehaviour
     string _opponentCard;
     string _playerCard;
 
-    bool _readyForPlayerInput;
     bool _dealerIsIdle;
+    bool _readyForPlayerInput;
+    bool _isPlayersTurn;
+    bool _opponentHasSelected;
 
+
+    //PROPERTIES
+    public bool ReadyForPlayerInput
+    {
+        get { return _readyForPlayerInput; }
+        set { _readyForPlayerInput = value; }
+    }
+
+
+    //BUILT-IN FUNCTIONS
+    private void OnEnable()
+    {
+        Animation_Manager.playerInputAllowed += AllowPlayerInput;
+        Animation_Manager.playerInputDisallowed += DisallowPlayerInput;
+    }
+
+    private void OnDisable()
+    {
+        Animation_Manager.playerInputAllowed -= AllowPlayerInput;
+        Animation_Manager.playerInputDisallowed -= DisallowPlayerInput;
+    }
 
     void Start()
     {
-        _animator_Player = GetComponentInChildren<Animator>();
+        TurnCardsFaceDown();
 
-        _opponentCardCover.SetActive(true);
-        _readyForPlayerInput = true;
+        DisallowPlayerInput();
 
         _gripL.SetActive(false);
         _gripR.SetActive(false);
     }
 
-    // Update is called once per frame
     void Update()
     {
-        AnimationAssess();
-
-        if(_readyForPlayerInput)
+        if (ReadyForPlayerInput)
         {
             _cardImagePlayer.sprite = _itemImage[_selectionID];
-
+            _cardCoverPlayer.SetActive(false);
             UserInput();
-            PlayerSelectsCard();
+            if(_opponentHasSelected == false)
+                OpponentSelectsCard();
+
         }
+        if (_isPlayersTurn)
+            UserInput();
     }
 
-    void AnimationAssess()
+
+    //EVENT FUNCTIONS
+    void AllowPlayerInput()
     {
-        if (_animator_Player.GetCurrentAnimatorStateInfo(0).IsName("DealerShuffle"))
-        {
-            _gripR.SetActive(true);
-            _gripL.SetActive(true);
+        ReadyForPlayerInput = true;
+    }
 
-            _tabledCardsAnimator.SetTrigger("CollectCards"); 
-        }
+    void DisallowPlayerInput()
+    {
+        ReadyForPlayerInput = false;
+    }
+    
 
-        if (_animator_Player.GetCurrentAnimatorStateInfo(0).IsName("DealerDeal"))
-        {
-            Debug.Log("Dealer is Dealing Cards");
-            _tabledCardsAnimator.SetTrigger("DealCards");
-        }
+    //CORE FUNCTIONS
+    void TurnCardsFaceDown()
+    {
+        _cardCoverOpponent.SetActive(true);
+        _cardCoverPlayer.SetActive(true);
+    }
 
+    void OpponentSelectsCard()
+    {
+        _opponentHasSelected = true;
 
-        if (_animator_Player.GetCurrentAnimatorStateInfo(0).IsName("DealerIdle"))
-        {
-            _gripR.SetActive(false);
-            //_gripL.SetActive(false);
-
-            _dealerIsIdle = true;
-        }
-
-        if (_dealerIsIdle)
-        {
-            if (!_animator_Player.GetCurrentAnimatorStateInfo(0).IsName("DealerIdle"))
-            {
-                _dealerIsIdle = false;
-
-                var randomIdleAnim = Random.Range(0, 4);
-                _animator_Player.SetInteger("IdleValue", randomIdleAnim);
-            } 
-        }
-
-        if (_animator_Player.GetCurrentAnimatorStateInfo(0).IsName("DealerFan"))
-        {
-            _cardsInHandAnimator.SetBool("FanCards", true);
-            StartCoroutine(ResetDealerFanTrigger());
-        }
+        UI_Manager.Instance.DisplayPlayerMessage("W/S chooses, Space selects");
+        Debug.Log("Displaying UI Message");
+        _opponentSelection = Random.Range(0, 3);
+        _opponentCard = _roShamBo[_opponentSelection];
+        _cardNameOpponent.text = _opponentCard;
+        
+        Debug.Log("Opponent Card: " + _opponentCard);
+        _isPlayersTurn = true;
+        
     }
 
     void UserInput()
@@ -125,35 +133,30 @@ public class Ro_Sham_Bo : MonoBehaviour
 
         else if (_selectionID > 2)
             _selectionID = 0;
+
+        if (Input.GetKeyDown(KeyCode.Space))
+            PlayerSelectsCard();
     }
 
     void PlayerSelectsCard()
     {
+        _isPlayersTurn = false;
+        DisallowPlayerInput();
+
         _cardImagePlayer.sprite = _itemImage[_selectionID];
         _playerCard = _roShamBo[_selectionID];
         _cardNamePlayer.text = _playerCard;
 
-        Debug.Log("Player: " + _playerCard);
-        if (Input.GetKeyDown(KeyCode.Space))
-        {            
-            OpponentSelect();
-            _readyForPlayerInput = false;
-        }
+        Debug.Log("Player: " + _playerCard);                  
+    
+        CompareOpponentsCard();        
     }
 
-    void OpponentSelect()
-    {
-        _opponentSelection = Random.Range(0, 3);
-        _opponentCard = _roShamBo[_opponentSelection];
-        _cardNameOpponent.text = _opponentCard;
-
-        Debug.Log("Opponent Card: " + _opponentCard);
-        CompareOpponentsCard();
-    }
 
     void CompareOpponentsCard()
     {
-        _opponentCardCover.SetActive(false);
+        _cardCoverOpponent.SetActive(false);
+
         switch (_opponentCard)
         {
             case "ROCK":
@@ -185,44 +188,45 @@ public class Ro_Sham_Bo : MonoBehaviour
                 break;
         }
 
-        _opponentMesh.sprite = _itemImage[_opponentSelection];
+        _cardImageOpponent.sprite = _itemImage[_opponentSelection];
         _cardImagePlayer.sprite = _itemImage[_selectionID];
 
         StartCoroutine(DelayErasePlayerMessage());
     }
 
+
+    //WIN, LOSE, DRAW FUNCTIONS
     void Win()
     {
-        _playerMessage.text = "YOU WON";
+        UI_Manager.Instance.DisplayPlayerMessage("YOU WON");
         Debug.Log("Win");
+        Animation_Manager.Instance.SetPlayerWinsRoundTrigger();
     }
 
     void Lose()
     {
-        _playerMessage.text = "YOU LOST";
+        UI_Manager.Instance.DisplayPlayerMessage("YOU LOST");
         Debug.Log("Lose");
     }
 
     void Draw()
     {
         Debug.Log("Draw");
-        _playerMessage.text = "DRAW";
+        UI_Manager.Instance.DisplayPlayerMessage("DRAW");
     }
+
 
     //COROUTINES
     IEnumerator DelayErasePlayerMessage()
     {
         yield return new WaitForSeconds(2);
 
-        _playerMessage.text = "";
+        UI_Manager.Instance.DisplayPlayerMessage("");
 
-        _opponentCardCover.SetActive(true);
-        _readyForPlayerInput = true;
-    }
+        Animation_Manager.Instance.SetShuffleTrigger();
 
-    IEnumerator ResetDealerFanTrigger()
-    {
-        yield return new WaitForSeconds(2.5f);
-        _cardsInHandAnimator.SetBool("FanCards", false);
+        _cardCoverOpponent.SetActive(true);
+        _opponentHasSelected = false;
+        ReadyForPlayerInput = true;
     }
 }
