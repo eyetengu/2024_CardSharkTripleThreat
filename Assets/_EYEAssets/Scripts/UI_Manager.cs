@@ -62,6 +62,7 @@ public class UI_Manager : MonoBehaviour
     //PLAYER MESSAGES
     public void DisplayPlayerMessage(string message)
     {
+        StopCoroutine(ResetPlayerMessage());
         _playerMessage.text = message;
         StartCoroutine(ResetPlayerMessage());
     }

@@ -6,9 +6,6 @@ using UnityEngine.UI;
 
 public class CutForHighCard : MonoBehaviour
 {
-    [Header("MANAGERS")]
-    UI_Manager _uiManager;
-
     [Header("CARD FEATURES")]
     [SerializeField] int[] _cardValues;
     [SerializeField] Sprite[] _cardSuit;
@@ -21,13 +18,15 @@ public class CutForHighCard : MonoBehaviour
     [SerializeField] GameObject _opponentCoverCard;
     [SerializeField] GameObject _playerCoverCard;
 
+    [Header("CONTENDER CARD VALUES")]
+    [SerializeField] TMP_Text _opponentCardValue;
+    [SerializeField] TMP_Text _playerCardValue;
+
     Sprite _opponentSuit;
     Sprite _playerSuit;
 
     int _opponentValue;
     int _playerValue;
-    int _opponentCardValue;
-    int _playerCardValue;
 
     bool _isPlayersCut;
     bool _opponentHasSelectedCard;
@@ -57,23 +56,20 @@ public class CutForHighCard : MonoBehaviour
 
     void Start()
     {
-        _uiManager = FindObjectOfType<UI_Manager>();
-
         _cardValues = new int[13] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 
-        _opponentCoverCard.SetActive(true);
-        _playerCoverCard.SetActive(true);
-        _readyForPlayerInput = true;
-
-        OpponentCutsForHighCard();
+        BeginRound();
     }
 
     void Update()
     {
-        if (_readyForPlayerInput && _isPlayersCut)
+        if (ReadyForPlayerInput)
         {
-            if (Input.GetKeyDown(KeyCode.Space))
-                PlayerCutsForHighCard();
+            if (_isPlayersCut)
+            {
+                if (Input.GetKeyDown(KeyCode.Space))
+                    PlayerCutsForHighCard();
+            }
         }
     }
 
@@ -89,15 +85,26 @@ public class CutForHighCard : MonoBehaviour
         ReadyForPlayerInput = false;
     }
 
+    void BeginRound()
+    {
+        //AllowPlayerInput();
+
+        _opponentCoverCard.SetActive(true);
+        _playerCoverCard.SetActive(true);
+        
+        StartCoroutine(OneSecondPause(2.0f));
+    }
+
 
     //CORE FUNCTIONS
     void OpponentCutsForHighCard()
     {
-        _readyForPlayerInput = false;
-        var randomCard = Random.Range(0, 13);
+        DisallowPlayerInput();
+
+        _opponentValue = Random.Range(1, 14);
         var randomSuit = Random.Range(0, 4);
 
-        _opponentValue = _cardValues[randomCard];
+        _opponentCardValue.text = _opponentValue.ToString();
         _opponentSuit = _cardSuit[randomSuit];
 
         DisplayOpponentCard();
@@ -106,25 +113,30 @@ public class CutForHighCard : MonoBehaviour
     void DisplayOpponentCard()
     {
         _opponentCardImage[0].sprite = _opponentSuit;
-        _opponentCardImage[1].sprite = _opponentSuit;
+        _opponentCardImage[1].sprite = _opponentSuit;        
+        
+        _opponentCoverCard.SetActive(false);
 
-        _opponentCardValue = _opponentValue;        
-
+        UI_Manager.Instance.DisplayPlayerMessage("Player's Cut");
+        
+        AllowPlayerInput();
         _isPlayersCut = true;
+
         Debug.Log("Player Cut: " + _isPlayersCut);
     }
 
     void PlayerCutsForHighCard()
     {
-        _isPlayersCut = false;
-
-        int randomValue = Random.Range(0, 13);
+        _playerValue = Random.Range(1, 14);
         int randomSuit = Random.Range(0, 4);
 
-        _playerValue = _cardValues[randomValue];
+        _playerCardValue.text = _playerValue.ToString();
         _playerSuit = _cardSuit[randomSuit];
 
         DisplayPlayerCard();
+
+        DisallowPlayerInput();
+        _isPlayersCut = false;
     }
     
     void DisplayPlayerCard()
@@ -132,16 +144,13 @@ public class CutForHighCard : MonoBehaviour
         _playerCardImage[0].sprite = _playerSuit;
         _playerCardImage[1].sprite = _playerSuit;
 
-        _playerCardValue = _playerValue;
+        _playerCoverCard.SetActive(false);
 
         CompareBothCards();
     }
 
     void CompareBothCards()
     {
-        _opponentCoverCard.SetActive(false);
-        _playerCoverCard.SetActive(false);
-
         if (_playerValue > _opponentValue)
             Win();        
         else if (_playerValue == _opponentValue)
@@ -156,17 +165,17 @@ public class CutForHighCard : MonoBehaviour
     //WIN, LOSE, DRAW FUNCTIONS
     void Win()
     {
-        _uiManager.DisplayPlayerMessage("GREAT");
+        UI_Manager.Instance.DisplayPlayerMessage($"GREAT. \n{_playerValue} Beats {_opponentValue}");
     }
 
     void Lose()
     {
-        _uiManager.DisplayPlayerMessage("TOO BAD");
+        UI_Manager.Instance.DisplayPlayerMessage($"TOO BAD.\n{_playerValue} Is Less Than {_opponentValue}");
     }
 
     void Draw()
     {
-        _uiManager.DisplayPlayerMessage("IMPASSE");
+        UI_Manager.Instance.DisplayPlayerMessage("IMPASSE. \nNeither Contender Has The High Card");
     }
 
 
@@ -175,12 +184,14 @@ public class CutForHighCard : MonoBehaviour
     {
         yield return new WaitForSeconds(3.0f);
         
-        _uiManager.DisplayPlayerMessage("");
+        UI_Manager.Instance.DisplayPlayerMessage("");
 
-        _opponentCoverCard.SetActive(true);
-        _playerCoverCard.SetActive(true);
+        BeginRound();
+    }
 
+    IEnumerator OneSecondPause(float value)
+    {
+        yield return new WaitForSeconds(value);
         OpponentCutsForHighCard();
-
     }
 }
